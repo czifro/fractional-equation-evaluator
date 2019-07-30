@@ -1,0 +1,27 @@
+storage: none
+source https://api.nuget.org/v3/index.json
+framework netcoreapp2.1, netstandard2.0
+
+nuget FSharp.Core
+
+group test
+  storage: none
+  source https://api.nuget.org/v3/index.json
+  nuget FSharp.Core
+  nuget xunit 2.4.0
+  nuget xunit.runner.visualstudio 2.4.0
+  nuget Microsoft.NET.Test.Sdk 15.9.0
+
+
+group build
+  storage: none
+  source https://api.nuget.org/v3/index.json
+  nuget FSharp.Core
+  nuget Fake.Core.Target
+  nuget Fake.Core.Process
+  nuget Fake.DotNet.Cli
+  nuget Fake.Core.ReleaseNotes
+  nuget Fake.DotNet.Paket
+  nuget Fake.Core.Environment
+  nuget Fake.IO.FileSystem
+  nuget Fake.DotNet.MsBuild

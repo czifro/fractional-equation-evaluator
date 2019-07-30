@@ -1,0 +1,35 @@
+# Jetbrains
+.idea/
+*.user
+
+# .NET binaries
+bin/
+obj/
+
+# MacOS Files
+.DS_Store
+
+# Paket
+.paket/paket
+.paket/paket.bootstrapper
+.paket/.store
+paket-files
+packages
+
+# FAKE
+.fake*
+
+# GitVersion
+.gitversion
+
+# FluentMigrator
+.fluentmigrator
+
+# InheritDoc
+.inheritdoc
+
+# VSCode
+.vscode
+
+# Ionide
+.ionide
