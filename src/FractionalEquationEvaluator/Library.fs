@@ -27,10 +27,6 @@ module Expression =
     | Multiply
     | Divide
 
-  type internal EquationToken =
-    | NumberToken of Number
-    | OperatorToken of Operator
-
   type Equation =
     | Operand of Number
     | Operation of (Operator * Equation * Equation)
@@ -40,6 +36,10 @@ module Parser =
 
   open System.Text.RegularExpressions
   open Expression
+
+  type internal EquationToken =
+    | NumberToken of Number
+    | OperatorToken of Operator
 
   let tryParse (raw:string) : Equation option =
     let tryParseTokens (rawTokens:string list) : EquationToken list option =
@@ -137,3 +137,92 @@ module Parser =
     |> tryParseTokens
     |> Option.bind constructEquation
 
+[<RequireQualifiedAccess>]
+module Evaluator =
+
+  open Expression
+
+  let evaluate (equation:Equation) : Number =
+    let performOperation (op:Operator) (lhs:Number) (rhs:Number) =
+      let addSub (op:int -> int -> int) (lhs:Number) (rhs:Number) : Number =
+        let addSub' (whole:int, num:int, denom:int) (number:Number) : Number =
+          match number with
+          | Whole w -> Mixed (op whole w, num, denom)
+          | Mixed (w, n, d) -> Mixed (op whole w, op (num * d) (denom * n), denom * d)
+          | Fraction (n, d) -> Mixed (whole, op (num * d) (denom * n), denom * d)
+
+        match lhs with
+        | Whole whole                -> addSub' (whole, 0, 1) rhs
+        | Mixed (whole, num, denom)  -> addSub' (whole, num, denom) rhs
+        | Fraction (num, denom)      -> addSub' (0, num, denom) rhs
+
+      let multDiv (isMult:bool) (lhs:Number) (rhs:Number) : Number =
+        let mult (num:int, denom:int) (rhs:Number) : Number =
+          match rhs with
+          | Whole w -> Fraction (num * w, denom)
+          | Mixed (w, n, d) -> Fraction (num * (w * d + n), denom * d)
+          | Fraction (n, d) -> Fraction (num * n, denom * d)
+
+        let div (num:int, denom:int) (rhs:Number) : Number =
+          match rhs with
+          | Whole w -> Fraction (num * w, denom)
+          | Mixed (w, n, d) -> Fraction (num * d, denom * (w * d + n))
+          | Fraction (n, d) -> Fraction (num * d, denom * n)
+
+        match lhs, isMult with
+        | Whole whole, true   -> mult (whole, 1) rhs
+        | Whole whole, false  -> div (whole, 1) rhs
+        | Mixed (whole, num, denom), true   -> mult (whole * denom + num, denom) rhs
+        | Mixed (whole, num, denom), false  -> div (whole * denom + num, denom) rhs
+        | Fraction (num, denom), true   -> mult (num, denom) rhs
+        | Fraction (num, denom), false  -> div (num, denom) rhs
+
+      match op with
+      | Add       -> addSub (+) lhs rhs
+      | Subtract  -> addSub (-) lhs rhs
+      | Multiply  -> multDiv true lhs rhs
+      | Divide    -> multDiv false lhs rhs
+
+    let rec eval (eq:Equation) (cont:Number -> Number) : Number =
+      match eq with
+      | Operand num               -> cont <| num
+      | Operation (op, eq0, eq1)  ->
+        eval eq0 (fun lhs ->
+          eval eq1 (fun rhs ->
+            cont <| performOperation op lhs rhs
+          )
+        )
+
+    let normalize (number:Number) : Number =
+      let reduceFraction (num:int, denom:int) : int * int =
+        let rec gcd a b =
+          match abs b with
+          | 0 -> a
+          | _ -> gcd b (a % b)
+
+        let gcd' = gcd num denom
+        (num / gcd', denom / gcd')
+
+      let convertImproperFractionToMixed (num:int, denom:int) : int * int * int =
+        let whole = num / denom
+        let remainder = num % denom
+        (whole, remainder, denom)
+
+      let normalizeMixed (whole:int, num:int, denom:int) =
+        let (whole', num, denom) =
+          if num > denom then convertImproperFractionToMixed (num, denom)
+          else (0, num, denom)
+        let (num, denom) = reduceFraction (num, denom)
+        match whole + whole', num, denom with
+        | 0, 0, _ -> Whole 0
+        | w, n, 1 -> Whole (w + n)
+        | 0, n, d -> Fraction (n, d)
+        | w, n, d -> Mixed (w, n, d)
+
+      match number with
+      | Whole _ -> number
+      | Mixed (whole, num, denom) -> normalizeMixed (whole, num, denom)
+      | Fraction (num, denom) -> normalizeMixed (0, num, denom)
+
+    eval equation id
+    |> normalize
