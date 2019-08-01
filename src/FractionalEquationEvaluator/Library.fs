@@ -1,7 +1,7 @@
 namespace FractionalEquationEvaluator
 
 [<AutoOpen>]
-module Prelude =
+module internal Prelude =
 
   [<AutoOpen>]
   module Operators =
@@ -30,6 +30,16 @@ module Expression =
   type Equation =
     | Operand of Number
     | Operation of (Operator * Equation * Equation)
+
+  [<RequireQualifiedAccess>]
+  [<CompilationRepresentationAttribute(CompilationRepresentationFlags.ModuleSuffix)>]
+  module Number =
+
+    let toString (number:Number) : string =
+      match number with
+      | Whole w          -> string w
+      | Mixed (w, n, d)  -> sprintf "%d_%d/%d" w n d
+      | Fraction (n, d)  -> sprintf "%d/%d" n d
 
 [<RequireQualifiedAccess>]
 module Parser =
